@@ -151,14 +151,8 @@ const deployAndSetup = async () => {
 describe("Test Market prediction Features", async function () {
   it("should test that insurance can be issues", async () => {
     //Handle case for when bondAmount is zero
-    const {
-      fp,
-      bondToken,
-      optimisticOracle,
-      deployer,
-      insurance,
-      alice
-    } = await loadFixture(deployAndSetup);
+    const { fp, bondToken, optimisticOracle, deployer, insurance, alice } =
+      await loadFixture(deployAndSetup);
     const bondAmount = ethers.parseEther("5000");
     await bondToken
       .connect(deployer)
@@ -167,9 +161,17 @@ describe("Test Market prediction Features", async function () {
       .connect(deployer)
       .approve(await insurance.getAddress(), bondAmount);
 
-    const policyStringToBytes = await fp.stringToBytes("Bad things have happened");
+    const policyStringToBytes = await fp.stringToBytes(
+      "Bad things have happened"
+    );
 
-    await insurance.connect(deployer).issueInsurance(bondAmount, await alice.getAddress(), policyStringToBytes);
+    await insurance
+      .connect(deployer)
+      .issueInsurance(
+        bondAmount,
+        await alice.getAddress(),
+        policyStringToBytes
+      );
 
     const eventFilter = insurance.filters.InsuranceIssued();
     const events = await insurance.queryFilter(eventFilter, "latest");
@@ -179,46 +181,123 @@ describe("Test Market prediction Features", async function () {
   });
 
   it("should submit insurance claim | request payout", async function () {
-    const {
-        fp,
-        bondToken,
-        optimisticOracle,
-        deployer,
-        insurance,
-        alice
-      } = await loadFixture(deployAndSetup);
-      const bondAmount = ethers.parseEther("5000");
-      await bondToken
-        .connect(deployer)
-        .allocateTo(await deployer.getAddress(), bondAmount);
-      await bondToken
-        .connect(deployer)
-        .approve(await insurance.getAddress(), bondAmount);
-  
-      const policyStringToBytes = await fp.stringToBytes("Bad things have happened");
-  
-      await insurance.connect(deployer).issueInsurance(bondAmount, await alice.getAddress(), policyStringToBytes);
-  
-      const insuranceIssuedEventFilter = insurance.filters.InsuranceIssued();
-      let events = await insurance.queryFilter(insuranceIssuedEventFilter, "latest");
+    const { fp, bondToken, optimisticOracle, deployer, insurance, alice } =
+      await loadFixture(deployAndSetup);
+    const bondAmount = ethers.parseEther("5000");
+    await bondToken
+      .connect(deployer)
+      .allocateTo(await deployer.getAddress(), bondAmount);
+    await bondToken
+      .connect(deployer)
+      .approve(await insurance.getAddress(), bondAmount);
+
+    const policyStringToBytes = await fp.stringToBytes(
+      "Bad things have happened"
+    );
+
+    await insurance
+      .connect(deployer)
+      .issueInsurance(
+        bondAmount,
+        await alice.getAddress(),
+        policyStringToBytes
+      );
+
+    const insuranceIssuedEventFilter = insurance.filters.InsuranceIssued();
+    let events = await insurance.queryFilter(
+      insuranceIssuedEventFilter,
+      "latest"
+    );
     //   console.log(events[0].args);
-      expect(events[0].args.insuranceAmount).to.equal(bondAmount);
-      expect(events[0].args.payoutAddress).to.equal(await alice.getAddress());
+    expect(events[0].args.insuranceAmount).to.equal(bondAmount);
+    expect(events[0].args.payoutAddress).to.equal(await alice.getAddress());
 
-      let minimumBond = await optimisticOracle.getMinimumBond(await bondToken.getAddress());
+    let minimumBond = await optimisticOracle.getMinimumBond(
+      await bondToken.getAddress()
+    );
 
-      await bondToken
-        .connect(deployer)
-        .allocateTo(await deployer.getAddress(), minimumBond);
-      await bondToken
-        .connect(deployer)
-        .approve(await insurance.getAddress(), minimumBond);
+    await bondToken
+      .connect(deployer)
+      .allocateTo(await deployer.getAddress(), minimumBond);
+    await bondToken
+      .connect(deployer)
+      .approve(await insurance.getAddress(), minimumBond);
 
-      expect(await insurance.connect(deployer).requestPayout(events[0].args.policyId)).to.emit(insurance, "InsurancePayoutRequested");
-      const requestPayoutEventFilter = insurance.filters.InsurancePayoutRequested();
-      events = await insurance.queryFilter(requestPayoutEventFilter, "latest");
-      console.log(events[0].args);
+    expect(
+      await insurance.connect(deployer).requestPayout(events[0].args.policyId)
+    ).to.emit(insurance, "InsurancePayoutRequested");
+    const requestPayoutEventFilter =
+      insurance.filters.InsurancePayoutRequested();
+    events = await insurance.queryFilter(requestPayoutEventFilter, "latest");
+    console.log(events[0].args);
   });
 
+  it.only("should test settling the assertion", async function () {
+    const { fp, bondToken, optimisticOracle, deployer, insurance, alice } =
+      await loadFixture(deployAndSetup);
+    const bondAmount = ethers.parseEther("5000");
+    await bondToken
+      .connect(deployer)
+      .allocateTo(await deployer.getAddress(), bondAmount);
+    await bondToken
+      .connect(deployer)
+      .approve(await insurance.getAddress(), bondAmount);
 
+    const policyStringToBytes = await fp.stringToBytes(
+      "Bad things have happened"
+    );
+
+    await insurance
+      .connect(deployer)
+      .issueInsurance(
+        bondAmount,
+        await alice.getAddress(),
+        policyStringToBytes
+      );
+
+    const insuranceIssuedEventFilter = insurance.filters.InsuranceIssued();
+    let events = await insurance.queryFilter(
+      insuranceIssuedEventFilter,
+      "latest"
+    );
+    //   console.log(events[0].args);
+    expect(events[0].args.insuranceAmount).to.equal(bondAmount);
+    expect(events[0].args.payoutAddress).to.equal(await alice.getAddress());
+
+    let minimumBond = await optimisticOracle.getMinimumBond(
+      await bondToken.getAddress()
+    );
+
+    await bondToken
+      .connect(deployer)
+      .allocateTo(await deployer.getAddress(), minimumBond);
+    await bondToken
+      .connect(deployer)
+      .approve(await insurance.getAddress(), minimumBond);
+
+    expect(
+      await insurance.connect(deployer).requestPayout(events[0].args.policyId)
+    ).to.emit(insurance, "InsurancePayoutRequested");
+    const requestPayoutEventFilter =
+      insurance.filters.InsurancePayoutRequested();
+    events = await insurance.queryFilter(requestPayoutEventFilter, "latest");
+    console.log(events[0].args);
+
+    //use another address to dispute the assertion
+    await network.provider.send("evm_increaseTime", [7200]); // Increase by 7200 seconds
+    await network.provider.send("evm_mine");
+    expect(await bondToken.balanceOf(alice)).to.equal(0);
+    //Settle Assertion using Optimistic Oracle
+    await optimisticOracle.settleAssertion(events[0].args.assertionId);
+    // AssertionSettled
+    assertionSettledEventFilter = optimisticOracle.filters.AssertionSettled();
+    events = await optimisticOracle.queryFilter(
+      assertionSettledEventFilter,
+      "latest"
+    );
+    console.log("✅ Assertion settled!", events[0].args);
+    expect(await bondToken.balanceOf(alice)).to.equal(
+      ethers.parseEther("5000")
+    );
+  });
 });
