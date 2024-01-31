@@ -46,4 +46,9 @@ contract Getter {
         return uint64(7200);
     }
 
+    function stringToBytes(string memory str) public pure returns (bytes memory) {
+    return bytes(str);
+    }
+
+
 }
